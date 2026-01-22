@@ -6,35 +6,45 @@ import jwt from "jsonwebtoken";
 const router = express.Router();
 
 router.post("/register", async (req, res) => {
-    const { name, email, password } = req.body;
+    try {
+        const { name, email, password } = req.body;
+        const normalizedEmail = email.toLowerCase();
 
-    const existingUser = await prisma.user.findUnique({
-        where: { email },
-    });
+        const existingUser = await prisma.user.findUnique({
+            where: { email: normalizedEmail },
+        });
 
-    if (existingUser) {
-        return res.status(400).json({ message: "User already exists " });
+        if (existingUser) {
+            return res.status(400).json({ message: "User already exists " });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const user = await prisma.user.create({
+            data: {
+                name,
+                email: normalizedEmail,
+                password: hashedPassword,
+            },
+        });
+        res.json({ message: "user registered successfully" });
+    } catch (error) {
+        console.error("Registration error:", error);
+        if (error.code === 'P2002') {
+            return res.status(400).json({ message: "User already exists (unique constraint)" });
+        }
+        res.status(500).json({ message: "Internal server error" });
     }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await prisma.user.create({
-        data: {
-            name,
-            email,
-            password: hashedPassword,
-        },
-    });
-    res.json({ message: "user registered successfully" });
 });
 
-router.post("/login", async (req, res)=>{
+router.post("/login", async (req, res) => {
     const { email, password } = req.body;
-//  check user exists
+    const normalizedEmail = email.toLowerCase();
+    //  check user exists
     const user = await prisma.user.findUnique({
-        where: { email },
+        where: { email: normalizedEmail },
     });
-    if(!user){
+    if (!user) {
         return res.status(400).json({
             message: "invalid credentials"
         });
@@ -43,16 +53,16 @@ router.post("/login", async (req, res)=>{
     //compare password
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    if(!isPasswordValid){
+    if (!isPasswordValid) {
         return res.status(400).json({ message: "invalid credentials" });
     }
 
     //generate JWT
 
     const token = jwt.sign(
-        {userId: user.id},
+        { userId: user.id },
         process.env.JWT_SECRET,
-        {expiresIn: "7d"}
+        { expiresIn: "7d" }
     );
 
     //send token

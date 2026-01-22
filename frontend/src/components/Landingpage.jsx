@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Landing() {
   const canvasRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -125,11 +127,10 @@ export default function Landing() {
         </p>
 
         <div className="mt-10 flex justify-center gap-4 pointer-events-auto">
-          <button className="px-8 py-3 rounded-lg bg-cyan-500 text-black font-semibold hover:bg-cyan-400 hover:shadow-[0_0_15px_rgba(34,211,238,0.5)] transition ease-in-out duration-300">
+          <button className="px-8 py-3 rounded-lg bg-cyan-500 text-black font-semibold hover:bg-cyan-400 hover:shadow-[0_0_15px_rgba(34,211,238,0.5)] transition ease-in-out duration-300"
+            onClick={() => navigate("/register")}
+          >
             Explore APIs
-          </button>
-          <button className="px-8 py-3 rounded-lg border border-cyan-500 text-cyan-400 font-semibold hover:bg-cyan-500/10 transition ease-in-out duration-300">
-            Compare Providers
           </button>
         </div>
       </section>

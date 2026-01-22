@@ -1,6 +1,36 @@
-import React from "react";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { registerUser } from "../api/auth";
 
 export default function Register() {
+  // State for form inputs
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!name || !email || !password) {
+      setError("All fields are required");
+      return;
+    }
+
+    try {
+      const result = await registerUser(name, email, password);
+      if (result.message === "user registered successfully") {
+        navigate("/login");
+      } else {
+        setError(result.message || "Registration failed");
+      }
+    } catch (err) {
+      setError("An unexpected error occurred");
+    }
+  };
+
   return (
     <div className="relative min-h-screen bg-black text-gray-200 flex items-center justify-center overflow-hidden">
 
@@ -18,23 +48,35 @@ export default function Register() {
           Start comparing APIs across the universe
         </p>
 
-        <form className="mt-8 space-y-5">
+        {error && (
+          <div className="mt-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm text-center">
+            {error}
+          </div>
+        )}
+
+        <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
 
           <input
             type="text"
             placeholder="Full name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             className="w-full px-4 py-3 bg-black border border-gray-700 rounded-md focus:outline-none focus:border-cyan-400 transition"
           />
 
           <input
             type="email"
             placeholder="Email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             className="w-full px-4 py-3 bg-black border border-gray-700 rounded-md focus:outline-none focus:border-cyan-400 transition"
           />
 
           <input
             type="password"
             placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             className="w-full px-4 py-3 bg-black border border-gray-700 rounded-md focus:outline-none focus:border-cyan-400 transition"
           />
 
@@ -58,3 +100,5 @@ export default function Register() {
     </div>
   );
 }
+
+
