@@ -1,20 +1,150 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/client"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
+// -----------------------------------------------------------------------------
+// ENUMS
+// -----------------------------------------------------------------------------
+
+enum PricingType {
+  FREE
+  FREEMIUM
+  PAID
+  ENTERPRISE
+}
+
+enum AuthType {
+  API_KEY
+  OAUTH2
+  BASIC
+  BEARER_TOKEN
+  NONE
+}
+
+enum InteractionType {
+  VIEW
+  COMPARE
+  REDIRECT
+}
+
+// -----------------------------------------------------------------------------
+// MODELS
+// -----------------------------------------------------------------------------
+
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  password     String
+  createdAt    DateTime @default(now())
+  
+  // Relations
+  interactions UserApiInteraction[]
+}
+
+model Provider {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  website     String
+  description String?
+  logoUrl     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  apis Api[]
+
+  @@index([name])
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  icon        String?  // emoji or icon class
+  createdAt   DateTime @default(now())
+
+  // Relations
+  apis Api[]
+
+  @@index([slug])
+}
+
+model Api {
+  id              String      @id @default(uuid())
+  name            String
+  slug            String      @unique
+  description     String
+  baseUrl         String
+  docsUrl         String
+  pricingType     PricingType
+  pricingDetails  String?     // e.g., "$0.002 per 1K tokens"
+  authType        AuthType
+  rateLimit       String?     // e.g., "60 calls/min"
+  hasFreeTier     Boolean     @default(false)
+  reliabilityScore Float?     // 0-10 score
+  popularityScore  Int        @default(0)
+  features        String[]    // Array of feature strings
+  source          String?     // Where data came from
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  providerId String
+  provider   Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  endpoints    Endpoint[]
+  interactions UserApiInteraction[]
+
+  @@index([name])
+  @@index([slug])
+  @@index([pricingType])
+  @@index([categoryId])
+  @@index([providerId])
+}
+
+model Endpoint {
+  id          String   @id @default(uuid())
+  path        String   // e.g., "/v1/chat/completions"
+  method      String   // GET, POST, PUT, DELETE
+  summary     String?
+  description String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  apiId String
+  api   Api    @relation(fields: [apiId], references: [id], onDelete: Cascade)
+
+  @@unique([apiId, path, method])
+  @@index([apiId])
+}
+
+model UserApiInteraction {
+  id        String          @id @default(uuid())
+  type      InteractionType
+  createdAt DateTime        @default(now())
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  apiId String
+  api   Api    @relation(fields: [apiId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([apiId])
+  @@index([createdAt])
 }

@@ -1,133 +1,80 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-
-// -----------------------------------------------------------------------------
-// 🛸 MOCK DATA (Static for now)
-// -----------------------------------------------------------------------------
-
-const CATEGORIES = ["All", "AI", "Weather", "Payments", "Communication", "Maps", "Crypto"];
-
-const ALL_APIS = [
-    {
-        id: 1,
-        name: "OpenAI API",
-        provider: "OpenAI",
-        category: "AI",
-        description: "Access GPT-4 and DALL-E models for natural language and image generation.",
-        priceType: "Paid",
-        features: ["Text Generation", "Image Creation", "Embeddings"],
-        rateLimit: "Variable",
-        freeTier: false,
-        docScore: 9.5,
-        website: "https://openai.com/api/",
-    },
-    {
-        id: 2,
-        name: "OpenWeatherMap",
-        provider: "OpenWeather",
-        category: "Weather",
-        description: "Real-time weather data, forecasts, and historical data for any location.",
-        priceType: "Freemium",
-        features: ["Current Weather", "Forecasts", "Historical Data"],
-        rateLimit: "60 calls/min",
-        freeTier: true,
-        docScore: 9.0,
-        website: "https://openweathermap.org/api",
-    },
-    {
-        id: 3,
-        name: "Stripe API",
-        provider: "Stripe",
-        category: "Payments",
-        description: "Accept payments, manage recurring billing, and handle payouts globally.",
-        priceType: "Paid",
-        features: ["Payments", "Subscriptions", "Fraud Detection"],
-        rateLimit: "100 req/sec",
-        freeTier: false,
-        docScore: 9.8,
-        website: "https://stripe.com/docs/api",
-    },
-    {
-        id: 4,
-        name: "Twilio API",
-        provider: "Twilio",
-        category: "Communication",
-        description: "Send SMS, make voice calls, and manage emails programmatically.",
-        priceType: "Paid",
-        features: ["SMS", "Voice", "Video"],
-        rateLimit: "Concurrency Based",
-        freeTier: true, // Trial
-        docScore: 9.2,
-        website: "https://www.twilio.com/docs/usage/api",
-    },
-    {
-        id: 5,
-        name: "Google Maps Platform",
-        provider: "Google",
-        category: "Maps",
-        description: "Embed maps, visualize location data, and access routes.",
-        priceType: "Freemium",
-        features: ["Maps", "Routes", "Places"],
-        rateLimit: "Unlimited (billed)",
-        freeTier: true, // $200 credit
-        docScore: 8.9,
-        website: "https://developers.google.com/maps",
-    },
-    {
-        id: 6,
-        name: "CoinGecko API",
-        provider: "CoinGecko",
-        category: "Crypto",
-        description: "Comprehensive cryptocurrency data, live prices, and market history.",
-        priceType: "Freemium",
-        features: ["Live Prices", "Market Cap", "Exchange info"],
-        rateLimit: "30 calls/min",
-        freeTier: true,
-        docScore: 8.5,
-        website: "https://www.coingecko.com/en/api",
-    },
-];
-
-// -----------------------------------------------------------------------------
-// 🚀 COMPONENTS
-// -----------------------------------------------------------------------------
+import Sidebar from "./Sidebar";
+import { fetchApis, fetchCategories } from "../api/apis";
+import { fetchUserProfile, logUserActivity } from "../api/user";
 
 export default function Dashboard() {
     const navigate = useNavigate();
     const [user, setUser] = useState(null);
 
+    // Data State
+    const [apis, setApis] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [loading, setLoading] = useState(true);
+
     // Search & Filter State
     const [searchQuery, setSearchQuery] = useState("");
-    const [selectedCategory, setSelectedCategory] = useState("All");
+    const [selectedCategory, setSelectedCategory] = useState("all"); // 'all' or category slug
 
     // Comparison State
     const [compareList, setCompareList] = useState([]);
     const [showCompare, setShowCompare] = useState(false);
 
-    // 🛡️ AUTH GUARD
+    // Sidebar State
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    // 🛡️ AUTH & INITIAL LOAD
     useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (!token) {
-            navigate("/login");
-        } else {
-            // Mock user data for now
-            setUser({ email: "developer@explorer.com" });
-        }
+        const loadInitialData = async () => {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                navigate("/login");
+                return;
+            }
+
+            try {
+                // 1. Load User
+                const userData = await fetchUserProfile();
+                setUser(userData);
+
+                // 2. Load Categories
+                const catsData = await fetchCategories();
+                // Add 'All' option manually if needed, or handle in UI
+                setCategories(catsData || []);
+            } catch (error) {
+                console.error("Initialization failed:", error);
+                // navigate("/login"); // Optional: redirect on auth failure
+            }
+        };
+        loadInitialData();
     }, [navigate]);
 
-    // Handle Logout
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        navigate("/login");
-    };
+    // 🔄 FETCH APIs ON FILTER CHANGE
+    useEffect(() => {
+        const loadApis = async () => {
+            setLoading(true);
+            try {
+                const filters = {};
+                if (searchQuery) filters.search = searchQuery;
+                if (selectedCategory !== "all") filters.category = selectedCategory;
 
-    // Filter Logic
-    const filteredAPIs = ALL_APIS.filter((api) => {
-        const matchesSearch = api.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            api.category.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesCategory = selectedCategory === "All" || api.category === selectedCategory;
-        return matchesSearch && matchesCategory;
-    });
+                const result = await fetchApis(filters);
+                setApis(result.apis || []);
+            } catch (error) {
+                console.error("Failed to fetch APIs:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        // Debounce search
+        const timeoutId = setTimeout(() => {
+            loadApis();
+        }, 300);
+
+        return () => clearTimeout(timeoutId);
+    }, [searchQuery, selectedCategory]);
 
     // Comparison Logic
     const addToCompare = (api) => {
@@ -138,6 +85,8 @@ export default function Dashboard() {
         }
         setCompareList([...compareList, api]);
         setShowCompare(true);
+        // Log activity
+        logUserActivity("COMPARE", { apiId: api.id });
     };
 
     const removeFromCompare = (id) => {
@@ -156,40 +105,26 @@ export default function Dashboard() {
                     <h1 className="text-xl font-bold tracking-wide text-white">Key-Verse</h1>
                 </div>
 
-                <div className="hidden md:flex flex-1 max-w-md mx-8">
-                    <input
-                        type="text"
-                        placeholder="Quick search..."
-                        className="w-full bg-[#1A202C] border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-cyan-500 transition-colors"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </div>
-
                 <div className="flex items-center gap-4">
-                    <div className="group relative">
-                        <button className="flex items-center gap-2 hover:text-white transition">
-                            <span className="text-sm">{user?.email || "Explorer"}</span>
-                            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs ml-2">
-                                User
-                            </div>
-                        </button>
-                        {/* Dropdown */}
-                        <div className="absolute right-0 mt-2 w-48 bg-[#1A202C] border border-gray-700 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                            <button
-                                onClick={handleLogout}
-                                className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-[#252b36] rounded-lg transition"
-                            >
-                                Logout
-                            </button>
+                    <button
+                        onClick={() => setIsSidebarOpen(true)}
+                        className="group flex items-center gap-2 hover:text-white transition"
+                    >
+                        <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs ml-2 border border-transparent group-hover:border-cyan-500 transition-colors">
+                            {user?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || "U"}
                         </div>
-                    </div>
+                    </button>
                 </div>
             </nav>
 
+            <Sidebar
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+                user={user}
+            />
+
             {/* 2️⃣ HERO & DISCOVERY */}
             <header className="px-6 py-12 md:py-20 text-center relative overflow-hidden">
-                {/* Background blobs */}
                 <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-[100px] -z-10"></div>
                 <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[100px] -z-10"></div>
 
@@ -209,16 +144,25 @@ export default function Dashboard() {
 
                 {/* Category Chips */}
                 <div className="flex flex-wrap justify-center gap-3">
-                    {CATEGORIES.map((cat) => (
+                    <button
+                        onClick={() => setSelectedCategory("all")}
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${selectedCategory === "all"
+                            ? "bg-cyan-500 text-black shadow-[0_0_10px_rgba(34,211,238,0.5)]"
+                            : "bg-[#1A202C] text-gray-400 hover:bg-gray-700 hover:text-white"
+                            }`}
+                    >
+                        All
+                    </button>
+                    {categories.map((cat) => (
                         <button
-                            key={cat}
-                            onClick={() => setSelectedCategory(cat)}
-                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${selectedCategory === cat
-                                    ? "bg-cyan-500 text-black shadow-[0_0_10px_rgba(34,211,238,0.5)]"
-                                    : "bg-[#1A202C] text-gray-400 hover:bg-gray-700 hover:text-white"
+                            key={cat.id}
+                            onClick={() => setSelectedCategory(cat.slug)}
+                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${selectedCategory === cat.slug
+                                ? "bg-cyan-500 text-black shadow-[0_0_10px_rgba(34,211,238,0.5)]"
+                                : "bg-[#1A202C] text-gray-400 hover:bg-gray-700 hover:text-white"
                                 }`}
                         >
-                            {cat}
+                            {cat.name}
                         </button>
                     ))}
                 </div>
@@ -227,54 +171,59 @@ export default function Dashboard() {
             {/* 3️⃣ API LISTING GRID */}
             <main className="px-6 pb-32 max-w-7xl mx-auto">
                 <h3 className="text-xl font-semibold mb-6 text-gray-300">
-                    {filteredAPIs.length} Result{filteredAPIs.length !== 1 ? 's' : ''} Found
+                    {apis.length} Result{apis.length !== 1 ? 's' : ''} Found
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredAPIs.map((api) => (
-                        <div key={api.id} className="bg-[#0F141B] border border-gray-800 rounded-xl p-6 hover:border-gray-600 hover:-translate-y-1 transition-all duration-300 flex flex-col group">
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <h4 className="text-lg font-bold text-white group-hover:text-cyan-400 transition-colors">{api.name}</h4>
-                                    <span className="text-xs text-gray-500 uppercase tracking-wider">{api.provider}</span>
-                                </div>
-                                <span className={`px-2 py-1 rounded text-xs font-semibold ${api.priceType === "Free" ? "bg-green-500/20 text-green-400" :
-                                        api.priceType === "Paid" ? "bg-red-500/20 text-red-400" :
+                {loading ? (
+                    <div className="text-center py-20 text-gray-500 animate-pulse">Scanning the Key-Verse database...</div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {apis.map((api) => (
+                            <div key={api.id} className="bg-[#0F141B] border border-gray-800 rounded-xl p-6 hover:border-gray-600 hover:-translate-y-1 transition-all duration-300 flex flex-col group">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h4 className="text-lg font-bold text-white group-hover:text-cyan-400 transition-colors">{api.name}</h4>
+                                        <span className="text-xs text-gray-500 uppercase tracking-wider">{api.provider.name}</span>
+                                    </div>
+                                    <span className={`px-2 py-1 rounded text-xs font-semibold ${api.pricingType === "FREE" ? "bg-green-500/20 text-green-400" :
+                                        api.pricingType === "PAID" ? "bg-red-500/20 text-red-400" :
                                             "bg-yellow-500/20 text-yellow-400"
-                                    }`}>
-                                    {api.priceType}
-                                </span>
-                            </div>
-
-                            <p className="text-gray-400 text-sm mb-6 flex-grow">{api.description}</p>
-
-                            <div className="flex flex-wrap gap-2 mb-6">
-                                {api.features.slice(0, 3).map((feat, i) => (
-                                    <span key={i} className="px-2 py-1 bg-gray-800 rounded text-xs text-gray-300">
-                                        {feat}
+                                        }`}>
+                                        {api.pricingType}
                                     </span>
-                                ))}
-                            </div>
+                                </div>
 
-                            <div className="flex gap-3 mt-auto">
-                                <button
-                                    onClick={() => addToCompare(api)}
-                                    className="flex-1 py-2 px-3 rounded-lg border border-gray-700 hover:bg-gray-800 text-sm font-medium transition-colors"
-                                >
-                                    Compare
-                                </button>
-                                <a
-                                    href={api.website}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex-1 py-2 px-3 rounded-lg bg-cyan-600/20 text-cyan-400 hover:bg-cyan-600/30 text-center text-sm font-medium transition-colors"
-                                >
-                                    Visit &rarr;
-                                </a>
+                                <p className="text-gray-400 text-sm mb-6 flex-grow">{api.description}</p>
+
+                                <div className="flex flex-wrap gap-2 mb-6">
+                                    {api.features.slice(0, 3).map((feat, i) => (
+                                        <span key={i} className="px-2 py-1 bg-gray-800 rounded text-xs text-gray-300">
+                                            {feat}
+                                        </span>
+                                    ))}
+                                </div>
+
+                                <div className="flex gap-3 mt-auto">
+                                    <button
+                                        onClick={() => addToCompare(api)}
+                                        className="flex-1 py-2 px-3 rounded-lg border border-gray-700 hover:bg-gray-800 text-sm font-medium transition-colors"
+                                    >
+                                        Compare
+                                    </button>
+                                    <a
+                                        href={api.provider.website} // Or api.docsUrl
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={() => logUserActivity("REDIRECT", { apiId: api.id, url: api.provider.website })}
+                                        className="flex-1 py-2 px-3 rounded-lg bg-cyan-600/20 text-cyan-400 hover:bg-cyan-600/30 text-center text-sm font-medium transition-colors"
+                                    >
+                                        Visit &rarr;
+                                    </a>
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
             </main>
 
             {/* 4️⃣ COMPARISON PANEL (Fixed Bottom) */}
@@ -304,18 +253,18 @@ export default function Dashboard() {
 
                                     <div className="space-y-2 mt-4 text-sm">
                                         <div className="flex justify-between border-b border-gray-700 pb-1">
-                                            <span className="text-gray-500">Rate Limit</span>
-                                            <span className="text-gray-300">{api.rateLimit}</span>
+                                            <span className="text-gray-500">Auth</span>
+                                            <span className="text-gray-300">{api.authType || "N/A"}</span>
                                         </div>
                                         <div className="flex justify-between border-b border-gray-700 pb-1">
-                                            <span className="text-gray-500">Free Tier</span>
-                                            <span className={api.freeTier ? "text-green-400" : "text-red-400"}>{api.freeTier ? "Yes" : "No"}</span>
+                                            <span className="text-gray-500">Tier</span>
+                                            <span className={api.pricingType === "FREE" ? "text-green-400" : "text-yellow-400"}>{api.pricingType}</span>
                                         </div>
                                         <div className="flex justify-between pt-1">
-                                            <span className="text-gray-500">Doc Score</span>
+                                            <span className="text-gray-500">Reliability</span>
                                             <div className="flex items-center gap-1">
                                                 <span className="text-yellow-400">★</span>
-                                                <span className="text-gray-300">{api.docScore}</span>
+                                                <span className="text-gray-300">{api.reliabilityScore?.toFixed(1) || "-"}</span>
                                             </div>
                                         </div>
                                     </div>
