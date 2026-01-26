@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 export default function Landing() {
   const canvasRef = useRef(null);
@@ -206,8 +206,8 @@ export default function Landing() {
       <footer className="relative z-10 px-10 py-8 border-t border-gray-800 text-sm text-gray-500 flex justify-between pointer-events-auto">
         <span>© 2026 Key-Verse</span>
         <div className="space-x-4">
-          <a href="/privacy" className="hover:text-gray-300">Privacy</a>
-          <a href="/terms" className="hover:text-gray-300">Terms</a>
+          <Link to="/privacy" className="hover:text-gray-300">Privacy</Link>
+          <Link to="/terms" className="hover:text-gray-300">Terms</Link>
         </div>
       </footer>
 

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { registerUser } from "../api/auth";
 
 export default function Register() {
@@ -91,10 +91,11 @@ export default function Register() {
 
         <p className="mt-6 text-center text-sm text-gray-500">
           Already in orbit?{" "}
-          <a href="/login" className="text-cyan-400 hover:underline">
+          <Link to="/login" className="text-cyan-400 hover:underline">
             Login here
-          </a>
+          </Link>
         </p>
+
 
       </div>
     </div>

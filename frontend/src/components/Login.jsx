@@ -1,19 +1,27 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { loginUser } from "../api/auth";
 
 export default function Login() {
   // State for form inputs
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const result = await loginUser(email, password);
-    if (result.token) {
-      localStorage.setItem("token", result.token);
-      navigate("/dashboard");
+    setError("");
+    try {
+      const result = await loginUser(email, password);
+      if (result.token) {
+        localStorage.setItem("token", result.token);
+        navigate("/dashboard");
+      } else {
+        setError(result.message || "Login failed. Please check your credentials.");
+      }
+    } catch (err) {
+      setError("Unable to connect to the server. Please try again later.");
     }
   };
 
@@ -33,6 +41,12 @@ export default function Login() {
         <p className="mt-2 text-center text-gray-400 text-sm">
           Access your saved API explorations
         </p>
+
+        {error && (
+          <div className="mt-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm text-center">
+            {error}
+          </div>
+        )}
 
         <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
 
@@ -63,10 +77,11 @@ export default function Login() {
 
         <p className="mt-6 text-center text-sm text-gray-500">
           New explorer?{" "}
-          <a href="/register" className="text-cyan-400 hover:underline">
+          <Link to="/register" className="text-cyan-400 hover:underline">
             Create an account
-          </a>
+          </Link>
         </p>
+
 
       </div>
     </div>
