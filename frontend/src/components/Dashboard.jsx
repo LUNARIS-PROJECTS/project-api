@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
+import ApiDnaStrand from "./ApiDnaStrand";
 import { fetchApis, fetchCategories } from "../api/apis";
 import { fetchUserProfile, logUserActivity } from "../api/user";
 
@@ -15,11 +16,12 @@ export default function Dashboard() {
 
     // Search & Filter State
     const [searchQuery, setSearchQuery] = useState("");
-    const [selectedCategory, setSelectedCategory] = useState("all"); // 'all' or category slug
+    const [selectedCategory, setSelectedCategory] = useState("all");
 
     // Comparison State
     const [compareList, setCompareList] = useState([]);
     const [showCompare, setShowCompare] = useState(false);
+    const [isMinimized, setIsMinimized] = useState(false);
 
     // Sidebar State
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -34,17 +36,12 @@ export default function Dashboard() {
             }
 
             try {
-                // 1. Load User
                 const userData = await fetchUserProfile();
                 setUser(userData);
-
-                // 2. Load Categories
                 const catsData = await fetchCategories();
-                // Add 'All' option manually if needed, or handle in UI
                 setCategories(catsData || []);
             } catch (error) {
                 console.error("Initialization failed:", error);
-                // navigate("/login"); // Optional: redirect on auth failure
             }
         };
         loadInitialData();
@@ -68,7 +65,6 @@ export default function Dashboard() {
             }
         };
 
-        // Debounce search
         const timeoutId = setTimeout(() => {
             loadApis();
         }, 300);
@@ -79,20 +75,23 @@ export default function Dashboard() {
     // Comparison Logic
     const addToCompare = (api) => {
         if (compareList.find((item) => item.id === api.id)) return;
-        if (compareList.length >= 3) {
-            alert("You can compare up to 3 APIs at a time.");
+        if (compareList.length >= 6) {
+            alert("Orbit can only stabilize 6 DNA strands at once.");
             return;
         }
         setCompareList([...compareList, api]);
         setShowCompare(true);
-        // Log activity
+        setIsMinimized(false);
         logUserActivity("COMPARE", { apiId: api.id });
     };
 
     const removeFromCompare = (id) => {
         const newList = compareList.filter((item) => item.id !== id);
         setCompareList(newList);
-        if (newList.length === 0) setShowCompare(false);
+        if (newList.length === 0) {
+            setShowCompare(false);
+            setIsMinimized(false);
+        }
     };
 
     return (
@@ -142,7 +141,6 @@ export default function Dashboard() {
                     />
                 </div>
 
-                {/* Category Chips */}
                 <div className="flex flex-wrap justify-center gap-3">
                     <button
                         onClick={() => setSelectedCategory("all")}
@@ -211,7 +209,7 @@ export default function Dashboard() {
                                         Compare
                                     </button>
                                     <a
-                                        href={api.provider.website} // Or api.docsUrl
+                                        href={api.provider.website}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         onClick={() => logUserActivity("REDIRECT", { apiId: api.id, url: api.provider.website })}
@@ -226,62 +224,114 @@ export default function Dashboard() {
                 )}
             </main>
 
-            {/* 4️⃣ COMPARISON PANEL (Fixed Bottom) */}
-            {showCompare && compareList.length > 0 && (
-                <div className="fixed bottom-0 left-0 right-0 bg-[#0F141B] border-t border-gray-700 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-40 animate-[fadeInUp_0.3s_ease-out]">
-                    <div className="max-w-7xl mx-auto px-6 py-6">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-lg font-bold text-white">Compare Mode</h3>
-                            <button
-                                onClick={() => setShowCompare(false)}
-                                className="text-gray-400 hover:text-white text-sm"
-                            >
-                                Close Panel
-                            </button>
-                        </div>
+            {/* 4️⃣ MINIMIZED COMPARISON BAR */}
+            {showCompare && isMinimized && (
+                <div
+                    onClick={() => setIsMinimized(false)}
+                    className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0F141B]/90 backdrop-blur-xl border border-cyan-500/30 rounded-full px-6 py-3 cursor-pointer hover:border-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.2)] transition-all flex items-center gap-4 animate-[fadeInUp_0.3s_ease-out]"
+                >
+                    <div className="flex -space-x-2">
+                        {compareList.map(api => (
+                            <div key={api.id} className="w-6 h-6 rounded-full bg-cyan-500 border border-black flex items-center justify-center text-[10px] font-bold text-black">
+                                {api.name.charAt(0)}
+                            </div>
+                        ))}
+                    </div>
+                    <span className="text-xs font-bold uppercase tracking-widest text-white">Comparing {compareList.length} Strands</span>
+                    <button className="text-cyan-400 text-xs font-black uppercase tracking-tighter hover:text-white transition underline underline-offset-4">Maximize</button>
+                </div>
+            )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {compareList.map((api) => (
-                                <div key={api.id} className="relative bg-[#1A202C] p-4 rounded-lg border border-gray-700">
+            {/* 5️⃣ DNA STRAND COMPARISON PANEL (MAXIMIZED) */}
+            {showCompare && !isMinimized && compareList.length > 0 && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 animate-[fadeIn_0.3s_ease-out]">
+                    <div className="fixed bottom-0 left-0 right-0 max-h-[92vh] overflow-y-auto scrollbar-hide bg-[#0F141B]/95 backdrop-blur-2xl border-t border-gray-800 shadow-[0_-30px_60px_rgba(0,0,0,0.9)] z-50 animate-[fadeInUp_0.5s_cubic-bezier(0.16,1,0.3,1)]">
+                        <div className="max-w-[1400px] mx-auto px-6 py-10">
+
+                            <div className="flex justify-between items-end mb-12">
+                                <div>
+                                    <h3 className="text-3xl font-black text-white tracking-tighter uppercase">DNA Pattern Analysis</h3>
+                                    <p className="text-[11px] text-cyan-500 font-black uppercase tracking-[0.5em] mt-2">Deep Feature Synchronicity Active</p>
+                                </div>
+                                <div className="flex gap-4">
                                     <button
-                                        onClick={() => removeFromCompare(api.id)}
-                                        className="absolute top-2 right-2 text-gray-500 hover:text-red-400 text-lg leading-none"
+                                        onClick={() => setIsMinimized(true)}
+                                        className="px-6 py-2 rounded-full border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition text-[10px] font-black uppercase tracking-[0.2em]"
                                     >
-                                        &times;
+                                        Minimize
                                     </button>
-                                    <h4 className="font-bold text-white mb-1">{api.name}</h4>
+                                    <button
+                                        onClick={() => { setShowCompare(false); setCompareList([]); }}
+                                        className="px-6 py-2 rounded-full bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white transition text-[10px] font-black uppercase tracking-[0.2em]"
+                                    >
+                                        Exit
+                                    </button>
+                                </div>
+                            </div>
 
-                                    <div className="space-y-2 mt-4 text-sm">
-                                        <div className="flex justify-between border-b border-gray-700 pb-1">
-                                            <span className="text-gray-500">Auth</span>
-                                            <span className="text-gray-300">{api.authType || "N/A"}</span>
-                                        </div>
-                                        <div className="flex justify-between border-b border-gray-700 pb-1">
-                                            <span className="text-gray-500">Tier</span>
-                                            <span className={api.pricingType === "FREE" ? "text-green-400" : "text-yellow-400"}>{api.pricingType}</span>
-                                        </div>
-                                        <div className="flex justify-between pt-1">
-                                            <span className="text-gray-500">Reliability</span>
-                                            <div className="flex items-center gap-1">
-                                                <span className="text-yellow-400">★</span>
-                                                <span className="text-gray-300">{api.reliabilityScore?.toFixed(1) || "-"}</span>
+                            <div className="flex justify-center items-start gap-8 lg:gap-12">
+                                {/* Feature Labels Legend - Compact */}
+                                <div className="hidden xl:flex flex-col gap-[10px] pt-[104px] text-right min-w-[180px]">
+                                    {[
+                                        "Free Tier Access", "Rate Limit Thresholds", "SDK & Library Ecosystem", "Pricing Transparency",
+                                        "Security & Compliance", "Setup Complexity", "Regional Infrastructure", "Documentation Quality"
+                                    ].map((label, i) => (
+                                        <span key={i} className="h-[14px] text-[10px] text-gray-500 font-black uppercase tracking-tighter flex items-center justify-end leading-none">
+                                            {label}
+                                        </span>
+                                    ))}
+                                </div>
+
+                                {/* DNA Strands - No Scrollbars */}
+                                <div className="flex gap-4 lg:gap-8 flex-1 justify-center overflow-x-auto scrollbar-hide pb-8">
+                                    {compareList.map((api) => (
+                                        <ApiDnaStrand
+                                            key={api.id}
+                                            api={api}
+                                            onRemove={removeFromCompare}
+                                        />
+                                    ))}
+
+                                    {/* Empty Add Slot - Compact Size */}
+                                    {compareList.length < 6 && (
+                                        <div
+                                            onClick={() => {
+                                                setIsMinimized(true);
+                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                            }}
+                                            className="min-w-[140px] h-[320px] mt-[104px] border-2 border-dashed border-gray-800 rounded-[3rem] flex flex-col items-center justify-center gap-4 group cursor-pointer hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all duration-500 shadow-inner"
+                                        >
+                                            <div className="w-12 h-12 rounded-full border-2 border-dashed border-gray-700 flex items-center justify-center text-gray-600 group-hover:border-cyan-400 group-hover:text-cyan-400 group-hover:rotate-180 transition-all duration-700">
+                                                <span className="text-2xl font-light text-gray-500">+</span>
+                                            </div>
+                                            <div className="text-center px-4">
+                                                <p className="text-[9px] text-gray-600 font-black uppercase tracking-widest group-hover:text-cyan-400 transition-colors">Add Strand</p>
+                                                <p className="text-[8px] text-gray-700 font-bold uppercase mt-1 opacity-50">{6 - compareList.length} free</p>
                                             </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
-                            ))}
+                            </div>
 
-                            {/* Empty Slots placeholder */}
-                            {[...Array(3 - compareList.length)].map((_, i) => (
-                                <div key={i} className="hidden md:flex items-center justify-center border border-dashed border-gray-700 rounded-lg text-gray-600 text-sm p-4">
-                                    Select an API to compare
+                            {/* Legend - Compact & Clean */}
+                            <div className="mt-12 pt-8 border-t border-gray-800/50 flex flex-wrap justify-center gap-12 text-[10px] text-gray-400 font-black uppercase tracking-[0.3em]">
+                                <div className="flex items-center gap-3 group">
+                                    <span className="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e] transition-transform"></span>
+                                    <span>Optimal Infrastructure</span>
                                 </div>
-                            ))}
+                                <div className="flex items-center gap-3 group">
+                                    <span className="w-3 h-3 rounded-full bg-orange-500 shadow-[0_0_10px_#f97316] transition-transform"></span>
+                                    <span>Conditional Support</span>
+                                </div>
+                                <div className="flex items-center gap-3 group">
+                                    <span className="w-3 h-3 rounded-full bg-gray-700 transition-transform"></span>
+                                    <span>Logic Unavailable</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
-
         </div>
     );
 }
