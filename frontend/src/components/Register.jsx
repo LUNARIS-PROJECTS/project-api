@@ -8,6 +8,7 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -19,15 +20,18 @@ export default function Register() {
       return;
     }
 
+    setLoading(true);
     try {
       const result = await registerUser(name, email, password);
-      if (result.message === "user registered successfully") {
+      if (result.success) {
         navigate("/login");
       } else {
         setError(result.message || "Registration failed");
       }
     } catch (err) {
-      setError("An unexpected error occurred");
+      setError(err.message || "An unexpected error occurred");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -82,9 +86,10 @@ export default function Register() {
 
           <button
             type="submit"
-            className="w-full py-3 bg-cyan-500 text-black font-semibold rounded-md hover:bg-cyan-400 hover:shadow-[0_0_15px_rgba(34,211,238,0.5)] transition"
+            disabled={loading}
+            className="w-full py-3 bg-cyan-500 text-black font-semibold rounded-md hover:bg-cyan-400 hover:shadow-[0_0_15px_rgba(34,211,238,0.5)] transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Create Account
+            {loading ? "Creating Account..." : "Create Account"}
           </button>
 
         </form>

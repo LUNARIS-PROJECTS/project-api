@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
-import ApiDnaStrand from "./ApiDnaStrand";
+import ApiDnaStrand, { FEATURES } from "./ApiDnaStrand";
 import { fetchApis, fetchCategories } from "../api/apis";
 import { fetchUserProfile, logUserActivity } from "../api/user";
 
@@ -176,69 +176,83 @@ export default function Dashboard() {
                     <div className="text-center py-20 text-gray-500 animate-pulse">Scanning the Key-Verse database...</div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {apis.map((api) => (
-                            <div key={api.id} className="bg-[#0F141B] border border-gray-800 rounded-xl p-6 hover:border-gray-600 hover:-translate-y-1 transition-all duration-300 flex flex-col group">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div>
-                                        <h4 className="text-lg font-bold text-white group-hover:text-cyan-400 transition-colors">{api.name}</h4>
-                                        <span className="text-xs text-gray-500 uppercase tracking-wider">{api.provider.name}</span>
-                                    </div>
-                                    <span className={`px-2 py-1 rounded text-xs font-semibold ${api.pricingType === "FREE" ? "bg-green-500/20 text-green-400" :
-                                        api.pricingType === "PAID" ? "bg-red-500/20 text-red-400" :
-                                            "bg-yellow-500/20 text-yellow-400"
-                                        }`}>
-                                        {api.pricingType}
-                                    </span>
-                                </div>
-
-                                <p className="text-gray-400 text-sm mb-6 flex-grow">{api.description}</p>
-
-                                <div className="flex flex-wrap gap-2 mb-6">
-                                    {api.features.slice(0, 3).map((feat, i) => (
-                                        <span key={i} className="px-2 py-1 bg-gray-800 rounded text-xs text-gray-300">
-                                            {feat}
+                        {apis.map((api) => {
+                            const isInCompare = compareList.some(item => item.id === api.id);
+                            return (
+                                <div key={api.id} className={`bg-[#0F141B] border ${isInCompare ? 'border-cyan-500/50 shadow-[0_0_20px_rgba(34,211,238,0.05)]' : 'border-gray-800'} rounded-xl p-6 hover:border-gray-600 hover:-translate-y-1 transition-all duration-300 flex flex-col group relative overflow-hidden`}>
+                                    {/* Active Analysis Indicator */}
+                                    {isInCompare && (
+                                        <div className="absolute -top-1 -right-1 w-12 h-12 bg-cyan-500/10 rounded-full flex items-center justify-center -rotate-12 transform translate-x-2 -translate-y-2 border border-cyan-500/20">
+                                            <span className="text-cyan-400 text-[10px] font-black uppercase tracking-tighter">Live</span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <h4 className="text-lg font-bold text-white group-hover:text-cyan-400 transition-colors">{api.name}</h4>
+                                            <span className="text-xs text-gray-500 uppercase tracking-wider">{api.provider.name}</span>
+                                        </div>
+                                        <span className={`px-2 py-1 rounded text-xs font-semibold ${api.pricingType === "FREE" ? "bg-green-500/20 text-green-400" :
+                                            api.pricingType === "PAID" ? "bg-red-500/20 text-red-400" :
+                                                "bg-yellow-500/20 text-yellow-400"
+                                            }`}>
+                                            {api.pricingType}
                                         </span>
-                                    ))}
-                                </div>
+                                    </div>
 
-                                <div className="flex gap-3 mt-auto">
-                                    <button
-                                        onClick={() => addToCompare(api)}
-                                        className="flex-1 py-2 px-3 rounded-lg border border-gray-700 hover:bg-gray-800 text-sm font-medium transition-colors"
-                                    >
-                                        Compare
-                                    </button>
-                                    <a
-                                        href={api.provider.website}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={() => logUserActivity("REDIRECT", { apiId: api.id, url: api.provider.website })}
-                                        className="flex-1 py-2 px-3 rounded-lg bg-cyan-600/20 text-cyan-400 hover:bg-cyan-600/30 text-center text-sm font-medium transition-colors"
-                                    >
-                                        Visit &rarr;
-                                    </a>
+                                    <p className="text-gray-400 text-sm mb-6 flex-grow">{api.description}</p>
+
+                                    <div className="flex flex-wrap gap-2 mb-6">
+                                        {api.features.slice(0, 3).map((feat, i) => (
+                                            <span key={i} className="px-2 py-1 bg-gray-800 rounded text-xs text-gray-300">
+                                                {feat}
+                                            </span>
+                                        ))}
+                                    </div>
+
+                                    <div className="flex gap-3 mt-auto">
+                                        <button
+                                            onClick={() => isInCompare ? removeFromCompare(api.id) : addToCompare(api)}
+                                            className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-all ${isInCompare
+                                                ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-400"
+                                                : "border-gray-700 hover:bg-gray-800 text-gray-400 hover:text-white"
+                                                }`}
+                                        >
+                                            {isInCompare ? "In Analysis" : "Compare"}
+                                        </button>
+                                        <a
+                                            href={api.provider.website}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={() => logUserActivity("REDIRECT", { apiId: api.id, url: api.provider.website })}
+                                            className="flex-1 py-2 px-3 rounded-lg bg-cyan-600/20 text-cyan-400 hover:bg-cyan-600/30 text-center text-sm font-medium transition-colors"
+                                        >
+                                            Visit &rarr;
+                                        </a>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </main>
 
-            {/* 4️⃣ MINIMIZED COMPARISON BAR */}
+            {/* 4️⃣ MINIMIZED COMPARISON BAR - Responsive Pill */}
             {showCompare && isMinimized && (
                 <div
                     onClick={() => setIsMinimized(false)}
-                    className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0F141B]/90 backdrop-blur-xl border border-cyan-500/30 rounded-full px-6 py-3 cursor-pointer hover:border-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.2)] transition-all flex items-center gap-4 animate-[fadeInUp_0.3s_ease-out]"
+                    className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0F141B]/95 backdrop-blur-2xl border border-cyan-500/30 rounded-full px-4 md:px-6 py-3 cursor-pointer hover:border-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.2)] transition-all flex items-center gap-3 md:gap-4 animate-[fadeInUp_0.3s_ease-out] whitespace-nowrap"
                 >
                     <div className="flex -space-x-2">
                         {compareList.map(api => (
-                            <div key={api.id} className="w-6 h-6 rounded-full bg-cyan-500 border border-black flex items-center justify-center text-[10px] font-bold text-black">
+                            <div key={api.id} className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-cyan-500 border border-black flex items-center justify-center text-[8px] md:text-[10px] font-bold text-black">
                                 {api.name.charAt(0)}
                             </div>
                         ))}
                     </div>
-                    <span className="text-xs font-bold uppercase tracking-widest text-white">Comparing {compareList.length} Strands</span>
-                    <button className="text-cyan-400 text-xs font-black uppercase tracking-tighter hover:text-white transition underline underline-offset-4">Maximize</button>
+                    <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-white">
+                        <span className="hidden sm:inline">Comparing </span>{compareList.length} <span className="hidden sm:inline">Strands</span>
+                    </span>
+                    <button className="text-cyan-400 text-[10px] md:text-xs font-black uppercase tracking-tighter hover:text-white transition underline underline-offset-4">Maximize</button>
                 </div>
             )}
 
@@ -246,87 +260,92 @@ export default function Dashboard() {
             {showCompare && !isMinimized && compareList.length > 0 && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 animate-[fadeIn_0.3s_ease-out]">
                     <div className="fixed bottom-0 left-0 right-0 max-h-[92vh] overflow-y-auto scrollbar-hide bg-[#0F141B]/95 backdrop-blur-2xl border-t border-gray-800 shadow-[0_-30px_60px_rgba(0,0,0,0.9)] z-50 animate-[fadeInUp_0.5s_cubic-bezier(0.16,1,0.3,1)]">
-                        <div className="max-w-[1400px] mx-auto px-6 py-10">
+                        <div className="w-full max-w-[1500px] mx-auto px-4 md:px-6 py-6 md:py-10">
 
-                            <div className="flex justify-between items-end mb-12">
+                            <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-6 mb-8 md:mb-12">
                                 <div>
-                                    <h3 className="text-3xl font-black text-white tracking-tighter uppercase">DNA Pattern Analysis</h3>
-                                    <p className="text-[11px] text-cyan-500 font-black uppercase tracking-[0.5em] mt-2">Deep Feature Synchronicity Active</p>
+                                    <h3 className="text-2xl md:text-3xl font-black text-white tracking-tighter uppercase">DNA Pattern Analysis</h3>
+                                    <p className="text-[10px] md:text-[11px] text-cyan-500 font-black uppercase tracking-[0.4em] mt-2">Deep Feature Synchronicity Active</p>
                                 </div>
-                                <div className="flex gap-4">
+                                <div className="flex gap-3">
                                     <button
                                         onClick={() => setIsMinimized(true)}
-                                        className="px-6 py-2 rounded-full border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition text-[10px] font-black uppercase tracking-[0.2em]"
+                                        className="flex-1 md:flex-none px-4 md:px-6 py-2 rounded-lg border border-gray-800 text-gray-400 hover:text-white hover:border-gray-500 transition text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em]"
                                     >
                                         Minimize
                                     </button>
                                     <button
                                         onClick={() => { setShowCompare(false); setCompareList([]); }}
-                                        className="px-6 py-2 rounded-full bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white transition text-[10px] font-black uppercase tracking-[0.2em]"
+                                        className="flex-1 md:flex-none px-4 md:px-6 py-2 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500 hover:text-white transition text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em]"
                                     >
                                         Exit
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="flex justify-center items-start gap-8 lg:gap-12">
-                                {/* Feature Labels Legend - Compact */}
-                                <div className="hidden xl:flex flex-col gap-[10px] pt-[104px] text-right min-w-[180px]">
-                                    {[
-                                        "Free Tier Access", "Rate Limit Thresholds", "SDK & Library Ecosystem", "Pricing Transparency",
-                                        "Security & Compliance", "Setup Complexity", "Regional Infrastructure", "Documentation Quality"
-                                    ].map((label, i) => (
-                                        <span key={i} className="h-[14px] text-[10px] text-gray-500 font-black uppercase tracking-tighter flex items-center justify-end leading-none">
-                                            {label}
+                            <div className="flex flex-col lg:flex-row items-center lg:items-start lg:justify-center gap-8 lg:gap-12">
+                                {/* Feature Labels Legend - Visible from LG up */}
+                                <div className="hidden lg:flex flex-col gap-[11px] pt-[84px] text-right min-w-[180px]">
+                                    {FEATURES.map((feat) => (
+                                        <span key={feat.key} className="h-[14px] text-[10px] text-gray-500 font-black uppercase tracking-tighter flex items-center justify-end leading-none">
+                                            {feat.label}
                                         </span>
                                     ))}
                                 </div>
 
-                                {/* DNA Strands - No Scrollbars */}
-                                <div className="flex gap-4 lg:gap-8 flex-1 justify-center overflow-x-auto scrollbar-hide pb-8">
+                                {/* DNA Strands - Enhanced Scrolling */}
+                                <div className="w-full flex gap-4 md:gap-8 overflow-x-auto scrollbar-hide pb-8 px-4 snap-x snap-mandatory justify-start lg:justify-center">
                                     {compareList.map((api) => (
-                                        <ApiDnaStrand
-                                            key={api.id}
-                                            api={api}
-                                            onRemove={removeFromCompare}
-                                        />
+                                        <div key={api.id} className="snap-center">
+                                            <ApiDnaStrand
+                                                api={api}
+                                                onRemove={removeFromCompare}
+                                            />
+                                        </div>
                                     ))}
 
-                                    {/* Empty Add Slot - Compact Size */}
+                                    {/* Empty Add Slot */}
                                     {compareList.length < 6 && (
-                                        <div
-                                            onClick={() => {
-                                                setIsMinimized(true);
-                                                window.scrollTo({ top: 0, behavior: 'smooth' });
-                                            }}
-                                            className="min-w-[140px] h-[320px] mt-[104px] border-2 border-dashed border-gray-800 rounded-[3rem] flex flex-col items-center justify-center gap-4 group cursor-pointer hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all duration-500 shadow-inner"
-                                        >
-                                            <div className="w-12 h-12 rounded-full border-2 border-dashed border-gray-700 flex items-center justify-center text-gray-600 group-hover:border-cyan-400 group-hover:text-cyan-400 group-hover:rotate-180 transition-all duration-700">
-                                                <span className="text-2xl font-light text-gray-500">+</span>
-                                            </div>
-                                            <div className="text-center px-4">
-                                                <p className="text-[9px] text-gray-600 font-black uppercase tracking-widest group-hover:text-cyan-400 transition-colors">Add Strand</p>
-                                                <p className="text-[8px] text-gray-700 font-bold uppercase mt-1 opacity-50">{6 - compareList.length} free</p>
+                                        <div className="snap-center">
+                                            <div
+                                                onClick={() => {
+                                                    setIsMinimized(true);
+                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                }}
+                                                className="min-w-[140px] h-[300px] mt-[84px] border-2 border-dashed border-gray-800/50 rounded-[2.5rem] flex flex-col items-center justify-center gap-4 group cursor-pointer hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all duration-500"
+                                            >
+                                                <div className="w-10 h-10 rounded-full border-2 border-dashed border-gray-800 flex items-center justify-center text-gray-700 group-hover:border-cyan-400 group-hover:text-cyan-400 group-hover:rotate-180 transition-all duration-700">
+                                                    <span className="text-xl font-light">+</span>
+                                                </div>
+                                                <div className="text-center px-4">
+                                                    <p className="text-[9px] text-gray-700 font-black uppercase tracking-widest group-hover:text-cyan-400 transition-colors">Add Strand</p>
+                                                    <p className="text-[8px] text-gray-800 font-bold uppercase mt-1 opacity-40">{6 - compareList.length} free</p>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
                                 </div>
                             </div>
 
-                            {/* Legend - Compact & Clean */}
-                            <div className="mt-12 pt-8 border-t border-gray-800/50 flex flex-wrap justify-center gap-12 text-[10px] text-gray-400 font-black uppercase tracking-[0.3em]">
-                                <div className="flex items-center gap-3 group">
-                                    <span className="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e] transition-transform"></span>
+                            {/* Legend - Responsive Spacing */}
+                            <div className="mt-8 md:mt-12 pt-8 border-t border-gray-800/30 flex flex-wrap justify-center gap-6 md:gap-12 text-[9px] md:text-[10px] text-gray-500 font-black uppercase tracking-[0.2em] md:tracking-[0.3em] px-4 text-center">
+                                <div className="flex items-center gap-2 group">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_10px_#22c55e]"></span>
                                     <span>Optimal Infrastructure</span>
                                 </div>
-                                <div className="flex items-center gap-3 group">
-                                    <span className="w-3 h-3 rounded-full bg-orange-500 shadow-[0_0_10px_#f97316] transition-transform"></span>
+                                <div className="flex items-center gap-2 group">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-[0_0_10px_#f97316]"></span>
                                     <span>Conditional Support</span>
                                 </div>
-                                <div className="flex items-center gap-3 group">
-                                    <span className="w-3 h-3 rounded-full bg-gray-700 transition-transform"></span>
+                                <div className="flex items-center gap-2 group">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-gray-700"></span>
                                     <span>Logic Unavailable</span>
                                 </div>
+                            </div>
+
+                            {/* Mobile Swipe Hint */}
+                            <div className="lg:hidden mt-8 text-center text-[10px] text-gray-600 font-black uppercase tracking-[0.2em] animate-pulse">
+                                ↔ Swipe Strands to Compare
                             </div>
                         </div>
                     </div>

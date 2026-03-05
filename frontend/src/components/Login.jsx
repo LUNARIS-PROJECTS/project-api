@@ -7,21 +7,25 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
     try {
       const result = await loginUser(email, password);
-      if (result.token) {
+      if (result.success && result.token) {
         localStorage.setItem("token", result.token);
         navigate("/dashboard");
       } else {
         setError(result.message || "Login failed. Please check your credentials.");
       }
     } catch (err) {
-      setError("Unable to connect to the server. Please try again later.");
+      setError(err.message || "Unable to connect to the server. Please try again later.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -68,9 +72,10 @@ export default function Login() {
 
           <button
             type="submit"
-            className="w-full py-3 bg-cyan-500 text-black font-semibold rounded-md hover:bg-cyan-400 hover:shadow-[0_0_15px_rgba(34,211,238,0.5)] transition"
+            disabled={loading}
+            className="w-full py-3 bg-cyan-500 text-black font-semibold rounded-md hover:bg-cyan-400 hover:shadow-[0_0_15px_rgba(34,211,238,0.5)] transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Login
+            {loading ? "Logging in..." : "Login"}
           </button>
 
         </form>
